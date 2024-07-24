@@ -10,8 +10,8 @@ export class FilesController {
 
     @Post()
     @UseInterceptors(FileInterceptor('file'))
-    uploadFile(@UploadedFile() file : any) {
+    uploadFile(@UploadedFile() file : Express.Multer.File) {
         console.log(file);
-        return file;
+        return file;    
     }
 }
