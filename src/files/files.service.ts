@@ -7,6 +7,7 @@ import * as csv from 'csv-parser';
 import { InjectModel, Model } from 'nestjs-dynamoose';
 import { Meta, MetaKey } from 'src/metadata/metadata.interface';
 import {v4 as uuidv4} from 'uuid';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 @Injectable()
 export class FilesService {
@@ -77,5 +78,9 @@ export class FilesService {
             })
             .on('error', rej)
         })
+    }
+
+    async createZipMeta(filename: string) {
+        return "hello"
     }
 }

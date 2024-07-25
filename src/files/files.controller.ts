@@ -6,10 +6,15 @@ import { FilesService } from './files.service';
 export class FilesController {
     constructor (private readonly filesService: FilesService) {}
 
-    @Get('/:filename')
-    getFiles(@Param('filename') fileName : string) {
+    @Post('/:filename')
+    createFiles(@Param('filename') fileName : string) {
         console.log(fileName);
         return this.filesService.createFileAttribute(fileName);
+    }
+
+    @Post('/meta/:filename')
+    createZipMeta(@Param('filename') filename: string) {
+        return filename
     }
 
     @Post('/upload')
