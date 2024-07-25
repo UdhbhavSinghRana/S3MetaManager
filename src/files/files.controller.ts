@@ -9,7 +9,7 @@ export class FilesController {
     @Get('/:filename')
     getFiles(@Param('filename') fileName : string) {
         console.log(fileName);
-        return this.filesService.getFileAttribute(fileName);
+        return this.filesService.createFileAttribute(fileName);
     }
 
     @Post('/upload')

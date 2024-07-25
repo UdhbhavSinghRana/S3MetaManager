@@ -4,11 +4,16 @@ import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { Readable } from 'stream';
 import * as csv from 'csv-parser'; 
+import { InjectModel, Model } from 'nestjs-dynamoose';
+import { Meta, MetaKey } from 'src/metadata/metadata.interface';
+import {v4 as uuidv4} from 'uuid';
 
 @Injectable()
 export class FilesService {
     private readonly s3Client : S3Client;
     private s3: S3;
+    @InjectModel('Meta')
+    private metaModel: Model<Meta, MetaKey>
 
     constructor(private readonly configService: ConfigService) {
         const region = this.configService.get<string>('AWS_REGION');
@@ -41,7 +46,7 @@ export class FilesService {
         );
     }
 
-    async getFileAttribute(fileName: string) {
+    async createFileAttribute(fileName: string) {
         const data = await this.s3.getObject(
             {
                 Bucket: 's3-meta-manager-bucket',
@@ -62,6 +67,12 @@ export class FilesService {
                 }
             })
             .on('end', () => {
+                this.metaModel.create({
+                    fileName: fileName,
+                    id: uuidv4(),
+                    idCount: idCount,
+                    rowCount: rowCount
+                })
                 res({ fileName, idCount, rowCount })
             })
             .on('error', rej)
