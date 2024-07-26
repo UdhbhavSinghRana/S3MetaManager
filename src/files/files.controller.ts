@@ -14,15 +14,14 @@ export class FilesController {
     }
 
     @Post('/meta/:filename')
-    async createZipMeta(@Param('filename') filename: string, @Response() res: Res) {
-        const result = await this.filesService.createZipMeta(filename);
-
-        res.set({
-            'Content-Type': result.ContentType,
-        })
-
-        res.send(result.Body);
-        return res;
+    async createZipMeta(@Param('filename') filename: string) {
+        try {
+            const result = this.filesService.createZipMeta(filename);
+            return result;
+        }
+        catch(err) {
+            return err;
+        }
     }
 
     @Post('/upload')

@@ -8,6 +8,8 @@ import { InjectModel, Model } from 'nestjs-dynamoose';
 import { Meta, MetaKey } from 'src/metadata/metadata.interface';
 import {v4 as uuidv4} from 'uuid';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+import { PassThrough } from 'stream';
+import * as archiver from 'archiver'
 
 @Injectable()
 export class FilesService {
@@ -98,6 +100,9 @@ export class FilesService {
             console.log(val);
             return val;
         })
+        .catch((err) => {
+            return err;
+        })
     }
 
     async getFile(fileName: string) {
@@ -110,11 +115,57 @@ export class FilesService {
         .then((res) => {
             return res;
         })
+        .catch((err) => {
+            return err;
+        })
 
         return data;
     }
 
     async createZipMeta(fileName: string) {
-        return this.getFile(fileName);
-    }
+        try {
+            const archive = archiver('zip');
+            const passThroughStream = new PassThrough();
+    
+            // Retrieve file and metadata
+            console.log('Retrieving file...');
+            const fileData = await this.getFile(fileName);
+            console.log('File retrieved:', fileData);
+    
+            console.log('Retrieving metadata...');
+            const metadata = await this.retriveMeta(fileName);
+            console.log('Metadata retrieved:', metadata);
+    
+            if (!fileData.Body) {
+                throw new Error('File data not found');
+            }
+    
+            // Append file data and metadata to the archive
+            console.log('Appending file data...');
+            archive.append(fileData.Body as Buffer, { name: 'file' });
+            console.log('Appending metadata...');
+            archive.append(JSON.stringify(metadata), { name: 'metadata.json' });
+    
+            // Finalize the archive
+            console.log('Finalizing archive...');
+            archive.finalize();
+    
+            // Upload the archive to S3
+            console.log('Uploading to S3...');
+            const upload = this.s3.upload({
+                Bucket: 's3-meta-manager-bucket',
+                Key: `${fileName.split('.')[0]}.zip`, // Name the zip file
+                Body: passThroughStream,
+                ContentType: 'application/zip',
+            }).promise();
+    
+            // Pipe archive data to passThroughStream
+            archive.pipe(passThroughStream);
+    
+            return "Created Succefully";
+        } catch (error) {
+            console.error('Error creating ZIP file:', error);
+            throw new Error('Error creating ZIP file');
+        }
+    }    
 }
