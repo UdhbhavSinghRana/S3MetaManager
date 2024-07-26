@@ -7,12 +7,13 @@ import * as csv from 'csv-parser';
 import { InjectModel, Model } from 'nestjs-dynamoose';
 import { Meta, MetaKey } from 'src/metadata/metadata.interface';
 import {v4 as uuidv4} from 'uuid';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 
 @Injectable()
 export class FilesService {
     private readonly s3Client : S3Client;
     private s3: S3;
+    private readonly dynamoDb: DocumentClient;
     @InjectModel('Meta')
     private metaModel: Model<Meta, MetaKey>
 
@@ -34,6 +35,10 @@ export class FilesService {
             region,
             accessKeyId,
             secretAccessKey
+        })
+
+        this.dynamoDb = new DocumentClient({
+            region
         })
     }
 
@@ -70,7 +75,7 @@ export class FilesService {
             .on('end', () => {
                 this.metaModel.create({
                     fileName: fileName,
-                    id: uuidv4(),
+                    id: fileName,
                     idCount: idCount,
                     rowCount: rowCount
                 })
@@ -81,6 +86,17 @@ export class FilesService {
     }
 
     async createZipMeta(filename: string) {
-        return "hello"
+        const res = this.dynamoDb.get({
+            TableName: 'user',
+            Key: {
+                id: filename,
+            },
+        })
+        
+        return res.promise()
+        .then((val) => {
+            console.log(val);
+            return val;
+        })
     }
 }

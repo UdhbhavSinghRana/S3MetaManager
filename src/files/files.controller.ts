@@ -14,7 +14,7 @@ export class FilesController {
 
     @Post('/meta/:filename')
     createZipMeta(@Param('filename') filename: string) {
-        return filename
+        return this.filesService.createZipMeta(filename);
     }
 
     @Post('/upload')
