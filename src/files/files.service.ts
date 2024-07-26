@@ -85,7 +85,7 @@ export class FilesService {
         })
     }
 
-    async createZipMeta(filename: string) {
+    async retriveMeta(filename: string) {
         const res = this.dynamoDb.get({
             TableName: 'user',
             Key: {
@@ -98,5 +98,23 @@ export class FilesService {
             console.log(val);
             return val;
         })
+    }
+
+    async getFile(fileName: string) {
+        const data = await this.s3.getObject(
+            {
+                Bucket: 's3-meta-manager-bucket',
+                Key: fileName
+            }
+        ).promise()
+        .then((res) => {
+            return res;
+        })
+
+        return data;
+    }
+
+    async createZipMeta(fileName: string) {
+        return this.getFile(fileName);
     }
 }
