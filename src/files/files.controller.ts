@@ -24,9 +24,16 @@ export class FilesController {
         }
     }
 
-    @Post('/upload')
+    @Post()
     @UseInterceptors(FileInterceptor('file'))
     async uploadFile(@UploadedFile() file : Express.Multer.File) {
-        await this.filesService.upload(file.originalname, file.buffer);   
+        try {
+            await this.filesService.upload(file.originalname, file.buffer);   
+            return "Uploaded Successfully"
+        }
+        catch(err) {
+            return err;
+        }
+        
     }
 }

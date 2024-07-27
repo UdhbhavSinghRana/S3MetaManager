@@ -45,7 +45,7 @@ export class FilesService {
     }
 
     async upload(fileName: string, file: Buffer) {
-        await this.s3Client.send(
+        await this.s3Client.send(   
             new PutObjectCommand({
                 Bucket: 's3-meta-manager-bucket',
                 Key: fileName,
