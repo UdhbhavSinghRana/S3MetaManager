@@ -1,12 +1,9 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { Injectable } from '@nestjs/common';
+import { Header, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { Readable } from 'stream';
 import * as csv from 'csv-parser'; 
-import { InjectModel, Model } from 'nestjs-dynamoose';
-import { Meta, MetaKey } from 'src/metadata/metadata.interface';
-import {v4 as uuidv4} from 'uuid';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 
 import { PassThrough } from 'stream';
@@ -14,11 +11,8 @@ import * as archiver from 'archiver'
 
 @Injectable()
 export class FilesService {
-    private readonly s3Client : S3Client;
     private s3: S3;
     private readonly dynamoDb: DocumentClient;
-    @InjectModel('Meta')
-    private metaModel: Model<Meta, MetaKey>
 
     constructor(private readonly configService: ConfigService) {
         const region = this.configService.get<string>('AWS_REGION');
@@ -27,13 +21,6 @@ export class FilesService {
         if (!region || !accessKeyId || !secretAccessKey) {
             throw new Error('AWS configuration is not defined in the configuration');
         }
-        this.s3Client = new S3Client({
-            region,
-            credentials: {
-                accessKeyId,
-                secretAccessKey,
-            },
-        });
         
         this.s3 = new S3({
             region,
@@ -47,13 +34,12 @@ export class FilesService {
     }
 
     async upload(fileName: string, file: Buffer) {
-        await this.s3Client.send(   
-            new PutObjectCommand({
-                Bucket: 's3-meta-manager-bucket',
-                Key: fileName,
-                Body: file,
-            }),
-        );
+        const params = {
+            Bucket: 's3-meta-manager-bucket',
+            Key: fileName,
+            Body: file, 
+        }
+        return await this.s3.upload(params).promise();
     }
 
     async createFileAttribute(fileName: string) {
@@ -67,23 +53,33 @@ export class FilesService {
         const fileStream = Readable.from(data.Body.toString());
         
         return new Promise((res, rej) => {
-            let idCount = 0;
             let rowCount = 0;
+            const uniqueVal = new Map<string, Set<any>>();
             fileStream
             .pipe(csv())
             .on('data', (row) => {
                 rowCount++;
-                if (row.id) {
-                    idCount++;
+                for (const [col, val] of Object.entries(row)) {
+                    if (uniqueVal.has(col)) {
+                        uniqueVal.get(col).add(val);
+                    }
+                    else {
+                        uniqueVal.set(col, new Set());
+                        uniqueVal.get(col).add(val);
+                    }
                 }
             })
             .on('end', () => {
+                const colUniqueCount = {}
+                for (const [col, val] of uniqueVal.entries()) {
+                    colUniqueCount[col] = val.size;
+                }
                 const params = {
                     TableName: 'user',
                     Item: {
                         id: fileName,
                         rowCount: rowCount,
-                        idCount: idCount
+                        colUniqueCount
                     }
                 }
                 this.dynamoDb.put(params, (err) => {
@@ -93,7 +89,7 @@ export class FilesService {
                     else {
                         res({
                             fileName,
-                            idCount,
+                            colUniqueCount,
                             rowCount
                         });
                     }
