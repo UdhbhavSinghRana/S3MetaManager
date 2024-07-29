@@ -65,9 +65,11 @@ export class FilesService {
         ).promise();
 
         const fileStream = Readable.from(data.Body.toString());
-        let idCount = 0;
-        let rowCount = 0;
-        fileStream
+        
+        return new Promise((res, rej) => {
+            let idCount = 0;
+            let rowCount = 0;
+            fileStream
             .pipe(csv())
             .on('data', (row) => {
                 rowCount++;
@@ -84,12 +86,24 @@ export class FilesService {
                         idCount: idCount
                     }
                 }
-                this.dynamoDb.put(params)
-                
+                this.dynamoDb.put(params, (err) => {
+                    if (err) {
+                        rej("Failed to store data");
+                    }
+                    else {
+                        res({
+                            fileName,
+                            idCount,
+                            rowCount
+                        });
+                    }
+                })
             })
             .on('error', () => {
-                return "Failed"
+                rej("Failed to parse CSV");
             })
+        })
+        
     }
 
     async retriveMeta(filename: string) {

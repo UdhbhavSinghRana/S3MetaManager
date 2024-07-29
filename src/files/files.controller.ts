@@ -8,8 +8,8 @@ export class FilesController {
     constructor (private readonly filesService: FilesService) {}
 
     @Post('/:filename')
-    createFiles(@Param('filename') fileName : string) {
-        return this.filesService.createFileAttribute(fileName);
+    async createFiles(@Param('filename') fileName : string) {
+        return await this.filesService.createFileAttribute(fileName);
     }
 
     @Post('/meta/:filename')
