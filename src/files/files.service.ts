@@ -8,6 +8,7 @@ import { InjectModel, Model } from 'nestjs-dynamoose';
 import { Meta, MetaKey } from 'src/metadata/metadata.interface';
 import {v4 as uuidv4} from 'uuid';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+
 import { PassThrough } from 'stream';
 import * as archiver from 'archiver'
 
@@ -33,6 +34,7 @@ export class FilesService {
                 secretAccessKey,
             },
         });
+        
         this.s3 = new S3({
             region,
             accessKeyId,
@@ -65,8 +67,7 @@ export class FilesService {
         const fileStream = Readable.from(data.Body.toString());
         let idCount = 0;
         let rowCount = 0;
-        return new Promise((res, rej) => {
-            fileStream
+        fileStream
             .pipe(csv())
             .on('data', (row) => {
                 rowCount++;
@@ -75,16 +76,20 @@ export class FilesService {
                 }
             })
             .on('end', () => {
-                this.metaModel.create({
-                    fileName: fileName,
-                    id: fileName,
-                    idCount: idCount,
-                    rowCount: rowCount
-                })
-                res({ fileName, idCount, rowCount })
+                const params = {
+                    TableName: 'user',
+                    Item: {
+                        id: fileName,
+                        rowCount: rowCount,
+                        idCount: idCount
+                    }
+                }
+                this.dynamoDb.put(params)
+                
             })
-            .on('error', rej)
-        })
+            .on('error', () => {
+                return "Failed"
+            })
     }
 
     async retriveMeta(filename: string) {
@@ -142,13 +147,16 @@ export class FilesService {
     
             // Append file data and metadata to the archive
             console.log('Appending file data...');
-            archive.append(fileData.Body as Buffer, { name: 'file' });
+            archive.append(fileData.Body as Buffer, { name: 'file.csv' });
             console.log('Appending metadata...');
             archive.append(JSON.stringify(metadata), { name: 'metadata.json' });
     
             // Finalize the archive
             console.log('Finalizing archive...');
             archive.finalize();
+
+            // Pipe archive data to passThroughStream
+            archive.pipe(passThroughStream);
     
             // Upload the archive to S3
             console.log('Uploading to S3...');
@@ -158,9 +166,6 @@ export class FilesService {
                 Body: passThroughStream,
                 ContentType: 'application/zip',
             }).promise();
-    
-            // Pipe archive data to passThroughStream
-            archive.pipe(passThroughStream);
     
             return "Created Succefully";
         } catch (error) {

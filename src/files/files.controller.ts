@@ -9,7 +9,6 @@ export class FilesController {
 
     @Post('/:filename')
     createFiles(@Param('filename') fileName : string) {
-        console.log(fileName);
         return this.filesService.createFileAttribute(fileName);
     }
 
@@ -34,6 +33,5 @@ export class FilesController {
         catch(err) {
             return err;
         }
-        
     }
 }
