@@ -2,6 +2,7 @@ import { Controller, Get, Headers, Param, Post, Response, UploadedFile, UseInter
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FilesService } from './files.service';
 import { Response as Res } from 'express';
+import { GetFileDto } from './dto/get-file.dto';
 
 @Controller('files')
 export class FilesController {
@@ -13,9 +14,9 @@ export class FilesController {
     }
 
     @Post('/meta/:filename')
-    async createZipMeta(@Param('filename') filename: string) {
+    async createZipMeta(@Param('filename') getFileDto: GetFileDto) {
         try {
-            const result = this.filesService.createZipMeta(filename);
+            const result = this.filesService.createZipMeta(getFileDto);
             return result;
         }
         catch(err) {

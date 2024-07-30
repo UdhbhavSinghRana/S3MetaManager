@@ -1,13 +1,13 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Header, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { Readable } from 'stream';
 import * as csv from 'csv-parser'; 
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-
 import { PassThrough } from 'stream';
 import * as archiver from 'archiver'
+import { CreateMetaDto } from './dto/create-meta.dto';
+import { GetFileDto } from './dto/get-file.dto';
 
 @Injectable()
 export class FilesService {
@@ -18,6 +18,7 @@ export class FilesService {
         const region = this.configService.get<string>('AWS_REGION');
         const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
         const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+
         if (!region || !accessKeyId || !secretAccessKey) {
             throw new Error('AWS configuration is not defined in the configuration');
         }
@@ -42,7 +43,7 @@ export class FilesService {
         return await this.s3.upload(params).promise();
     }
 
-    async createFileAttribute(fileName: string) {
+    async createFileAttribute(fileName: string): Promise<CreateMetaDto> {
         const data = await this.s3.getObject(
             {
                 Bucket: 's3-meta-manager-bucket',
@@ -88,7 +89,7 @@ export class FilesService {
                     }
                     else {
                         res({
-                            fileName,
+                            id: fileName,
                             colUniqueCount,
                             rowCount
                         });
@@ -102,11 +103,12 @@ export class FilesService {
         
     }
 
-    async retriveMeta(filename: string) {
+    async retriveMeta(getFileDto : GetFileDto) {
+        const { fileName } = getFileDto;
         const res = this.dynamoDb.get({
             TableName: 'user',
             Key: {
-                id: filename,
+                id: fileName,
             },
         })
         
@@ -120,7 +122,8 @@ export class FilesService {
         })
     }
 
-    async getFile(fileName: string) {
+    async getFile(getFileDto : GetFileDto) {
+        const { fileName } = getFileDto;
         const data = await this.s3.getObject(
             {
                 Bucket: 's3-meta-manager-bucket',
@@ -137,18 +140,19 @@ export class FilesService {
         return data;
     }
 
-    async createZipMeta(fileName: string) {
+    async createZipMeta(getFileDto: GetFileDto) {
+        const { fileName } = getFileDto;
         try {
             const archive = archiver('zip');
             const passThroughStream = new PassThrough();
     
             // Retrieve file and metadata
             console.log('Retrieving file...');
-            const fileData = await this.getFile(fileName);
+            const fileData = await this.getFile(getFileDto);
             console.log('File retrieved:', fileData);
     
             console.log('Retrieving metadata...');
-            const metadata = await this.retriveMeta(fileName);
+            const metadata = await this.retriveMeta(getFileDto);
             console.log('Metadata retrieved:', metadata);
     
             if (!fileData.Body) {
