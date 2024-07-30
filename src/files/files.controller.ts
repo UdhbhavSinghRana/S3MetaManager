@@ -14,9 +14,9 @@ export class FilesController {
     }
 
     @Post('/meta/:filename')
-    async createZipMeta(@Param('filename') getFileDto: GetFileDto) {
+    async createZipMeta(@Param('filename') fileName: string) {
         try {
-            const result = this.filesService.createZipMeta(getFileDto);
+            const result = this.filesService.createZipMeta(fileName);
             return result;
         }
         catch(err) {

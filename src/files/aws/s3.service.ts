@@ -1,6 +1,8 @@
+import { Body, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { S3 } from "aws-sdk";
 
+@Injectable()
 export class S3Service {
     private s3: S3;
 
@@ -22,11 +24,33 @@ export class S3Service {
 
     generatePresignedUrl(bucketName: string, key: string) {
         const params = {
-            Bucker: bucketName,
+            Bucket: bucketName,
             Key: key,
             Expires: 60 * 5,
         }
 
         return this.s3.getSignedUrl('putObject', params);
+    }
+
+    async uploadFile(bucketName : string, key: string, body : Buffer) {
+        const params = {
+            Bucket: bucketName,
+            Key: key,
+            Body: body,
+        }
+
+        return await this.s3.upload(params).promise();
+    }
+
+    async getObject(bucketName: string, key: string): Promise<any> {
+        console.log(key);   
+        const data = await this.s3.getObject(
+            {
+                Bucket: bucketName,
+                Key: key
+            }
+        ).promise();
+
+        return data;
     }
 }

@@ -8,52 +8,26 @@ import { PassThrough } from 'stream';
 import * as archiver from 'archiver'
 import { CreateMetaDto } from './dto/create-meta.dto';
 import { GetFileDto } from './dto/get-file.dto';
+import { S3Service } from './aws/s3.service';
+import { DynamoDBService } from './aws/dynamodb.service';
 
 @Injectable()
 export class FilesService {
-    private s3: S3;
-    private readonly dynamoDb: DocumentClient;
+    constructor(
+        private readonly s3Service: S3Service,
+        private readonly dynamoDBService: DynamoDBService
+    ) {}
 
-    constructor(private readonly configService: ConfigService) {
-        const region = this.configService.get<string>('AWS_REGION');
-        const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
-        const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-
-        if (!region || !accessKeyId || !secretAccessKey) {
-            throw new Error('AWS configuration is not defined in the configuration');
-        }
-        
-        this.s3 = new S3({
-            region,
-            accessKeyId,
-            secretAccessKey
-        })
-
-        this.dynamoDb = new DocumentClient({
-            region
-        })
-    }
-
-    async upload(fileName: string, file: Buffer) {
-        const params = {
-            Bucket: 's3-meta-manager-bucket',
-            Key: fileName,
-            Body: file, 
-        }
-        return await this.s3.upload(params).promise();
+    async upload(fileName: string, file: any) {
+        return this.s3Service.uploadFile('s3-meta-manager-bucket', fileName, file);
     }
 
     async createFileAttribute(fileName: string): Promise<CreateMetaDto> {
-        const data = await this.s3.getObject(
-            {
-                Bucket: 's3-meta-manager-bucket',
-                Key: fileName
-            }
-        ).promise();
+        const data = await this.s3Service.getObject('s3-meta-manager-bucket', fileName);
 
         const fileStream = Readable.from(data.Body.toString());
         
-        return new Promise((res, rej) => {
+        return new Promise((resolve, reject) => {
             let rowCount = 0;
             const uniqueVal = new Map<string, Set<any>>();
             fileStream
@@ -70,49 +44,36 @@ export class FilesService {
                     }
                 }
             })
-            .on('end', () => {
+            .on('end', async () => {
                 const colUniqueCount = {}
                 for (const [col, val] of uniqueVal.entries()) {
                     colUniqueCount[col] = val.size;
                 }
-                const params = {
-                    TableName: 'user',
-                    Item: {
-                        id: fileName,
-                        rowCount: rowCount,
-                        colUniqueCount
-                    }
+                const item = {
+                    id: fileName,
+                    rowCount: rowCount,
+                    colUniqueCount
                 }
-                this.dynamoDb.put(params, (err) => {
-                    if (err) {
-                        rej("Failed to store data");
-                    }
-                    else {
-                        res({
-                            id: fileName,
-                            colUniqueCount,
-                            rowCount
-                        });
-                    }
+               
+                this.dynamoDBService.putItem(item, 'user')
+                .then((res) => {
+                    resolve(item);
                 })
+                .catch((err) => {
+                    reject(err);
+                });
             })
             .on('error', () => {
-                rej("Failed to parse CSV");
+                reject("Failed to parse CSV");
             })
         })
         
     }
 
-    async retriveMeta(getFileDto : GetFileDto) {
-        const { fileName } = getFileDto;
-        const res = this.dynamoDb.get({
-            TableName: 'user',
-            Key: {
-                id: fileName,
-            },
-        })
+    async retriveMeta(fileName : string) {
+        const res = this.dynamoDBService.getItem(fileName, 'user'); // returns a promise
         
-        return res.promise()
+        return res
         .then((val) => {
             console.log(val);
             return val;
@@ -122,37 +83,31 @@ export class FilesService {
         })
     }
 
-    async getFile(getFileDto : GetFileDto) {
-        const { fileName } = getFileDto;
-        const data = await this.s3.getObject(
-            {
-                Bucket: 's3-meta-manager-bucket',
-                Key: fileName
-            }
-        ).promise()
+    async getFile(fileName: string) {
+        const data = this.s3Service.getObject('s3-meta-manager-bucket', fileName);
+
+        return data
         .then((res) => {
+            console.log(res);
             return res;
         })
         .catch((err) => {
             return err;
         })
-
-        return data;
     }
 
-    async createZipMeta(getFileDto: GetFileDto) {
-        const { fileName } = getFileDto;
+    async createZipMeta(fileName: string) {
         try {
             const archive = archiver('zip');
             const passThroughStream = new PassThrough();
     
             // Retrieve file and metadata
             console.log('Retrieving file...');
-            const fileData = await this.getFile(getFileDto);
+            const fileData = await this.getFile(fileName);
             console.log('File retrieved:', fileData);
     
             console.log('Retrieving metadata...');
-            const metadata = await this.retriveMeta(getFileDto);
+            const metadata = await this.retriveMeta(fileName);
             console.log('Metadata retrieved:', metadata);
     
             if (!fileData.Body) {
@@ -174,12 +129,7 @@ export class FilesService {
     
             // Upload the archive to S3
             console.log('Uploading to S3...');
-            const upload = this.s3.upload({
-                Bucket: 's3-meta-manager-bucket',
-                Key: `${fileName.split('.')[0]}.zip`, // Name the zip file
-                Body: passThroughStream,
-                ContentType: 'application/zip',
-            }).promise();
+            await this.upload(`${fileName.split('.')[0]}.zip`, passThroughStream);
     
             return "Created Succefully";
         } catch (error) {

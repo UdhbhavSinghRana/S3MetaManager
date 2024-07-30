@@ -1,7 +1,9 @@
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DocumentClient } from "aws-sdk/clients/dynamodb";
 
 
+@Injectable()
 export class DynamoDBService {
     private readonly dynamoDb: DocumentClient;
 
@@ -19,7 +21,7 @@ export class DynamoDBService {
             Key: {
                 id: key,
             },
-        })
+        }).promise()
 
         return res;
     }
@@ -30,6 +32,6 @@ export class DynamoDBService {
             Item: item
         }
 
-        this.dynamoDb.put(params)
+        return this.dynamoDb.put(params).promise()
     }
 }
