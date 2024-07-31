@@ -3,11 +3,12 @@ import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
 import { ConfigService } from '@nestjs/config';
 import { AwsModule } from './aws/aws.module';
+import { FileRepository } from './files.repository';
 
 
 @Module({
   imports: [AwsModule],
   controllers: [FilesController],
-  providers: [FilesService, ConfigService],
+  providers: [FilesService, ConfigService, FileRepository],
 })
 export class FilesModule {}

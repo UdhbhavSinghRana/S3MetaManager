@@ -22,16 +22,6 @@ export class S3Service {
         })
     }
 
-    generatePresignedUrl(bucketName: string, key: string) {
-        const params = {
-            Bucket: bucketName,
-            Key: key,
-            Expires: 60 * 5,
-        }
-
-        return this.s3.getSignedUrl('putObject', params);
-    }
-
     async uploadFile(bucketName : string, key: string, body : Buffer) {
         const params = {
             Bucket: bucketName,
