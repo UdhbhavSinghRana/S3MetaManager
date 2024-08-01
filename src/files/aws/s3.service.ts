@@ -1,4 +1,4 @@
-import { Body, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { S3Repository } from "./s3.repository";
 
 @Injectable()

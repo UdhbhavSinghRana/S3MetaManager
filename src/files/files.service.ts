@@ -1,15 +1,5 @@
-import { Header, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { S3 } from 'aws-sdk';
-import { Readable } from 'stream';
-import * as csv from 'csv-parser'; 
-import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { PassThrough } from 'stream';
-import * as archiver from 'archiver'
+import { Injectable } from '@nestjs/common';
 import { CreateMetaDto } from './dto/create-meta.dto';
-import { GetFileDto } from './dto/get-file.dto';
-import { S3Service } from './aws/s3.service';
-import { DynamoDBService } from './aws/dynamodb.service';
 import { FileRepository } from './files.repository';
 
 @Injectable()

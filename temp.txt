@@ -1,0 +1,2 @@
+middlewares, exception handlers, interceptors and guards
+advanced coding standards how you write map, foreach, ternary operators, reducers, and when to use them

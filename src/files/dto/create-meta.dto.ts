@@ -1,5 +1,9 @@
 import { IsNotEmpty, IsNumber, IsObject, IsString } from "class-validator";
 
+interface ColCountDto {
+    [key: string]: number;
+}
+
 export class CreateMetaDto {
     @IsString()
     @IsNotEmpty()
@@ -9,5 +13,5 @@ export class CreateMetaDto {
     rowCount: number;
 
     @IsObject()
-    colUniqueCount: object;
+    colUniqueCount: ColCountDto;
 }
